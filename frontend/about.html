@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cloud Architecture · VoteSphere</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body data-page="about">
+
+  <div class="app">
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation"></aside>
+    <div class="sidebar-scrim" id="sidebarScrim"></div>
+
+    <div class="app-main">
+      <header class="topbar" id="topbar"></header>
+
+      <main class="page">
+        <section class="section">
+          <div class="section-head">
+            <h2>Cloud Architecture</h2>
+          </div>
+
+          <div class="card" style="padding:24px;margin-bottom:20px;">
+            <h3 style="margin-top:0;">Purpose</h3>
+            <p style="color:var(--text-muted);margin-bottom:0;">
+              VoteSphere is an academic cloud-computing project demonstrating a real-time,
+              serverless polling system built entirely on AWS managed services. Users create
+              polls, cast votes, and watch results update in real time via WebSockets.
+            </p>
+          </div>
+
+          <div class="card" style="padding:24px;margin-bottom:20px;">
+            <h3 style="margin-top:0;">Architecture Diagram</h3>
+            <pre style="background:#f8fafc;padding:16px;border-radius:10px;overflow:auto;font-size:13px;line-height:1.6;color:var(--text);">
+ ┌─────────────┐        ┌──────────────────┐
+ │  Browser    │──────▶ │  S3 Static Site  │
+ │  (User)     │◀────── │  (frontend/)     │
+ └──────┬──────┘        └──────────────────┘
+        │
+        │ REST (HTTPS)
+        ▼
+ ┌──────────────────┐    ┌─────────────────┐
+ │ API Gateway HTTP │───▶│ Lambda (REST)   │───▶┌─────────────┐
+ └──────────────────┘    │ Python 3.12     │    │ DynamoDB    │
+                         └─────────────────┘    │ polls       │
+                                                │ votes       │
+        ┌──────────────────────────────────────▶│ connections │
+        │                                       └─────────────┘
+        │ WebSocket (WSS)                              ▲
+        ▼                                              │
+ ┌──────────────────┐    ┌─────────────────┐          │
+ │ API Gateway WS   │───▶│ Lambda (WS)     │──────────┘
+ │ $connect         │    │ Python 3.12     │
+ │ $disconnect      │    │ Management API  │
+ │ subscribe        │    └─────────────────┘
+ └──────────────────┘
+            </pre>
+          </div>
+
+          <div class="card" style="padding:24px;margin-bottom:20px;">
+            <h3 style="margin-top:0;">AWS Services Used</h3>
+            <ul style="line-height:1.9;color:var(--text-muted);">
+              <li><strong>Amazon S3</strong> — hosts the static frontend (HTML / CSS / JS).</li>
+              <li><strong>API Gateway HTTP API</strong> — REST endpoints for polls and votes.</li>
+              <li><strong>AWS Lambda (Python 3.12)</strong> — backend business logic.</li>
+              <li><strong>Amazon DynamoDB</strong> — stores polls, votes, and WebSocket connections.</li>
+              <li><strong>API Gateway WebSocket API</strong> — pushes live vote updates to subscribers.</li>
+              <li><strong>Amazon CloudWatch</strong> — logs and monitoring for Lambda functions.</li>
+              <li><strong>AWS IAM</strong> — least-privilege roles for each Lambda function.</li>
+            </ul>
+          </div>
+
+          <div class="card" style="padding:24px;">
+            <h3 style="margin-top:0;">Real-Time Flow</h3>
+            <ol style="line-height:1.9;color:var(--text-muted);">
+              <li>User opens the Live Results page and the browser opens a WebSocket connection.</li>
+              <li>The client sends <code>{ action: 'subscribe', poll_id }</code> to the WebSocket Lambda.</li>
+              <li>The Lambda stores the connection ID and poll ID in DynamoDB.</li>
+              <li>When any user votes, the REST Lambda updates DynamoDB and calls the API Gateway Management API.</li>
+              <li>All subscribed browsers instantly receive the updated results over WebSocket.</li>
+              <li>Charts and progress bars re-render without a page reload.</li>
+            </ol>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>VoteSphere · Academic Cloud Computing Project</span>
+      </footer>
+    </div>
+  </div>
+
+  <div class="toast-host" id="toastHost" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.417.0/dist/umd/lucide.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

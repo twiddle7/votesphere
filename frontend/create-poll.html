@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Create Poll · VoteSphere</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body data-page="create">
+
+  <div class="app">
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation"></aside>
+    <div class="sidebar-scrim" id="sidebarScrim"></div>
+
+    <div class="app-main">
+      <header class="topbar" id="topbar"></header>
+
+      <main class="page">
+        <section class="section">
+          <div class="section-head">
+            <h2>Create a Poll</h2>
+          </div>
+
+          <form id="createForm" class="card"
+            style="padding:24px;display:flex;flex-direction:column;gap:18px;max-width:720px;">
+
+            <div>
+              <label for="question" style="font-weight:600;font-size:14px;">Poll question</label>
+              <input id="question" type="text" required maxlength="200"
+                placeholder="e.g. Which cloud provider do you prefer?"
+                style="width:100%;padding:11px 12px;margin-top:6px;border:1px solid var(--border);border-radius:10px;font-family:inherit;" />
+              <div id="qErr" style="color:var(--danger);font-size:13px;margin-top:4px;"></div>
+            </div>
+
+            <div>
+              <label style="font-weight:600;font-size:14px;">Answer options (2–10)</label>
+              <div id="optionsWrap" style="display:flex;flex-direction:column;gap:10px;margin-top:8px;"></div>
+              <button type="button" id="addOption" class="btn btn-ghost btn-sm" style="margin-top:10px;">
+                <i data-lucide="plus"></i> Add option
+              </button>
+            </div>
+
+            <div>
+              <label for="closingTime" style="font-weight:600;font-size:14px;">
+                Optional closing date &amp; time
+              </label>
+              <input id="closingTime" type="datetime-local"
+                style="width:100%;padding:11px 12px;margin-top:6px;border:1px solid var(--border);border-radius:10px;font-family:inherit;" />
+            </div>
+
+            <div style="display:flex;gap:10px;">
+              <button type="submit" class="btn btn-primary" id="submitBtn">
+                <i data-lucide="check-circle"></i> Create Poll
+              </button>
+              <a class="btn btn-ghost" href="polls.html">Cancel</a>
+            </div>
+
+          </form>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>VoteSphere · Academic Cloud Computing Project</span>
+      </footer>
+    </div>
+  </div>
+
+  <div class="toast-host" id="toastHost" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.417.0/dist/umd/lucide.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/websocket.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/create-poll.js"></script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VoteSphere — Real-Time Polling &amp; Voting</title>
+<meta name="description" content="VoteSphere — create polls, vote, and watch results update live on AWS." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/styles.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Cpath d='M9 17l4 4 10-10' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+</head>
+<body data-page="home">
+
+  <div class="app">
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation"></aside>
+    <div class="sidebar-scrim" id="sidebarScrim"></div>
+
+    <div class="app-main">
+      <header class="topbar" id="topbar"></header>
+
+      <main class="page" id="pageContent">
+
+        <section class="hero card">
+          <div class="hero-copy">
+            <span class="pill pill-brand"><i data-lucide="sparkles"></i> AWS Cloud Computing Project</span>
+            <h1>Welcome to <span class="grad-text">VoteSphere</span></h1>
+            <p class="hero-sub">
+              Create polls, collect votes and watch results update <strong>live</strong> — no page
+              refreshes. Powered by Amazon API Gateway, AWS Lambda, DynamoDB, WebSockets and S3.
+            </p>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="create-poll.html">
+                <i data-lucide="plus-circle"></i> Create a Poll
+              </a>
+              <a class="btn btn-ghost" href="polls.html">
+                <i data-lucide="vote"></i> Vote on a Poll
+              </a>
+            </div>
+          </div>
+          <div class="hero-art" aria-hidden="true">
+            <div class="hero-orb orb-a"></div>
+            <div class="hero-orb orb-b"></div>
+            <div class="hero-badge">
+              <i data-lucide="radio"></i>
+              <span>Live results streaming</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h2>Overview</h2>
+            <button class="btn btn-ghost btn-sm" id="refreshStats">
+              <i data-lucide="refresh-cw"></i> Refresh
+            </button>
+          </div>
+          <div class="stat-grid" id="statGrid">
+            <div class="stat-card skeleton-card"></div>
+            <div class="stat-card skeleton-card"></div>
+            <div class="stat-card skeleton-card"></div>
+            <div class="stat-card skeleton-card"></div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h2>Active polls</h2>
+            <a class="link-arrow" href="polls.html">View all <i data-lucide="arrow-right"></i></a>
+          </div>
+          <div class="card-grid" id="activePolls">
+            <div class="poll-card skeleton-card"></div>
+            <div class="poll-card skeleton-card"></div>
+            <div class="poll-card skeleton-card"></div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h2>Recently created</h2>
+          </div>
+          <div class="card-grid" id="recentPolls">
+            <div class="poll-card skeleton-card"></div>
+            <div class="poll-card skeleton-card"></div>
+            <div class="poll-card skeleton-card"></div>
+          </div>
+        </section>
+
+      </main>
+
+      <footer class="footer">
+        <span>VoteSphere · Academic Cloud Computing Project</span>
+        <span class="dot">•</span>
+        <a href="about.html">Architecture</a>
+      </footer>
+    </div>
+  </div>
+
+  <div class="toast-host" id="toastHost" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.417.0/dist/umd/lucide.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/websocket.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/home.js"></script>
+</body>
+</html>

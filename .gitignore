@@ -1,0 +1,24 @@
+# AWS
+.aws/
+*.pem
+credentials
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# SAM
+.aws-sam/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

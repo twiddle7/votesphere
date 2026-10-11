@@ -1,0 +1,286 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: VoteSphere — Real-Time Polling & Voting on AWS
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 15
+    MemorySize: 256
+
+Resources:
+
+  # ---------------- DynamoDB ----------------
+  PollsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: VoteSpherePolls
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: poll_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: poll_id
+          KeyType: HASH
+
+  VotesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: VoteSphereVotes
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: poll_id
+          AttributeType: S
+        - AttributeName: voter_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: poll_id
+          KeyType: HASH
+        - AttributeName: voter_id
+          KeyType: RANGE
+
+  ConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: VoteSphereConnections
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: connection_id
+          AttributeType: S
+        - AttributeName: poll_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: connection_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: poll_id-index
+          KeySchema:
+            - AttributeName: poll_id
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # ---------------- IAM ----------------
+  RestLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: VoteSphereRestPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt PollsTable.Arn
+                  - !GetAtt VotesTable.Arn
+                  - !GetAtt ConnectionsTable.Arn
+                  - !Sub "${ConnectionsTable.Arn}/index/*"
+              - Effect: Allow
+                Action:
+                  - execute-api:ManageConnections
+                Resource: "*"
+
+  WsLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: VoteSphereWsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt ConnectionsTable.Arn
+                  - !Sub "${ConnectionsTable.Arn}/index/*"
+
+  # ---------------- Lambdas ----------------
+  RestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: VoteSphereRest
+      CodeUri: ../backend/rest/
+      Handler: handler.lambda_handler
+      Role: !GetAtt RestLambdaRole.Arn
+      Environment:
+        Variables:
+          POLLS_TABLE: !Ref PollsTable
+          VOTES_TABLE: !Ref VotesTable
+          CONNECTIONS_TABLE: !Ref ConnectionsTable
+          WS_ENDPOINT: !Sub "https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${WsStage}"
+
+  WsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: VoteSphereWebSocket
+      CodeUri: ../backend/websocket/
+      Handler: handler.lambda_handler
+      Role: !GetAtt WsLambdaRole.Arn
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE: !Ref ConnectionsTable
+
+  # ---------------- HTTP API ----------------
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: VoteSphereHttpApi
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins: ["*"]
+        AllowMethods: ["GET","POST","OPTIONS"]
+        AllowHeaders: ["Content-Type"]
+
+  HttpIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${RestFunction.Arn}/invocations"
+      PayloadFormatVersion: "2.0"
+
+  HttpStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: prod
+      AutoDeploy: true
+
+  RouteCreatePoll:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "POST /polls"
+      Target: !Sub "integrations/${HttpIntegration}"
+
+  RouteListPolls:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /polls"
+      Target: !Sub "integrations/${HttpIntegration}"
+
+  RouteGetPoll:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /polls/{poll_id}"
+      Target: !Sub "integrations/${HttpIntegration}"
+
+  RouteVote:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "POST /polls/{poll_id}/vote"
+      Target: !Sub "integrations/${HttpIntegration}"
+
+  RouteClose:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "POST /polls/{poll_id}/close"
+      Target: !Sub "integrations/${HttpIntegration}"
+
+  RouteStats:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /stats"
+      Target: !Sub "integrations/${HttpIntegration}"
+
+  RestInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref RestFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*"
+
+  # ---------------- WebSocket API ----------------
+  WebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: VoteSphereWebSocketApi
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: "$request.body.action"
+
+  WsIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${WsFunction.Arn}/invocations"
+
+  WsRouteConnect:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: "$connect"
+      Target: !Sub "integrations/${WsIntegration}"
+
+  WsRouteDisconnect:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: "$disconnect"
+      Target: !Sub "integrations/${WsIntegration}"
+
+  WsRouteSubscribe:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: "subscribe"
+      Target: !Sub "integrations/${WsIntegration}"
+
+  WsStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref WebSocketApi
+      StageName: prod
+      AutoDeploy: true
+
+  WsInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref WsFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*"
+
+Outputs:
+  HttpApiUrl:
+    Description: REST API base URL (paste into frontend/js/config.js → API_BASE_URL)
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+
+  WebSocketUrl:
+    Description: WebSocket URL (paste into frontend/js/config.js → WS_URL)
+    Value: !Sub "wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
